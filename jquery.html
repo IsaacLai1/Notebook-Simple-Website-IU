@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <!--jQuery UI CSS CDN -->
+    <link href="https://code.jquery.com/ui/1.12.0/themes/smoothness/jquery-ui.css" rel="stylesheet">
+    <!-- basic jQuery is also required to run jQuery UI and it has to be before UI-library -->
+    <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.5.1.js"></script>
+    <!--jQuery UI script CDN -->
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script>
+        var custTypes = {};
+        var dialog, form;
+
+
+        $(document).ready(function () {
+
+            var postalofficeList = [];
+            var postalnumberList = [];
+
+            $.get("http://animalhospital.freemyip.com/customerbase/Customer", function (data, status, xhr) {
+                if (status == "success") {
+                    console.log(data); // when using get method, data is automatically converted js-object
+                    // we could also use string method mentioned in json.html
+                    data.map((x) => {
+                        if (postalofficeList.indexOf(x.postaloffice) < 0) {
+                            postalofficeList.push(x.postaloffice)
+                        }
+                        if (postalnumberList.indexOf(x.postalnumber) < 0) {
+                            postalnumberList.push(x.postalnumber)
+                        }
+                    })
+                }
+            });
+
+            $("#postaloffice").autocomplete({
+                source: postalofficeList
+            });
+            $("#postalnumber").autocomplete({
+                source: postalnumberList
+            });
+
+
+            $("#notificationWidget").hide();
+            $("#connectionError").hide();
+
+
+            $.get("http://animalhospital.freemyip.com/customerbase/Types", function (data, status) {
+                if (status == "success") {
+                    custTypes = data;
+                    data.forEach((r) => {
+                        let optstr = `<option value="${r.customertypeid}">${r.abbreviation + " " + r.description}</option>`;
+                        $('.custType').append(optstr);
+                    });
+                }
+            }).fail(function (xhr) {
+                $("#connectionError").show();
+                console.log(xhr.responseJSON);
+            });
+
+
+
+            $("#search").click(function () {
+                searchCustomerData();
+            });
+
+
+
+            dialog = $("#dialog-form").dialog({
+                autoOpen: false,
+                height: 600,
+                width: 350,
+                modal: true,
+                buttons: {
+                    "Save": saveCustomer,
+                    Cancel: function () {
+                        dialog.dialog("close");
+                    }
+                },
+                close: function () {
+                    form[0].reset();
+                }
+            });
+
+            form = dialog.find("form").on("submit", function (event) {
+                event.preventDefault(); // prevents loading the page from server
+                editCustomerId = undefined;
+                saveCustomer();
+            });
+
+            $("#add-customer").click(function () {
+                $("#dialog-form").dialog("option", "title", "Add new customer");
+                dialog.dialog("open");
+            });
+        });
+
+        var editCustomerId;
+
+        function saveCustomer() {
+            if (validCustomer()) {
+                var url, type;
+                if (editCustomerId == undefined) {
+                    url = "http://animalhospital.freemyip.com/customerbase/Customer";
+                    type = "POST";
+                }
+                else {
+                    url = "http://animalhospital.freemyip.com/customerbase/Customer/" + editCustomerId;
+                    type = "PUT";
+                }
+                $.ajax({
+                    type: type, // or get, delete, put and so on...
+                    url: url, //address we want to get stuff from or send stuff
+                    // data that we want to sent to server, this is usually js-object, sometimes json-string
+                    data: {
+                        name: $("#customerName").val(),
+                        address: $("#customerAddress").val(),
+                        postalnumber: $("#customerPostalnumber").val(),
+                        postaloffice: $("#customerPostaloffice").val(),
+                        customertype: $('#customerType').find(":selected").val()
+                    },
+                    success: function (result) {
+                        console.log(result);
+                        form[0].reset();
+                        dialog.dialog("close");
+                        searchCustomerData();
+                        $("#addingNotifications").removeClass("ui-state-error");
+                        $("#addingNotifications").html("All form fields are required.")
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        $("#addingNotifications").addClass("ui-state-error");
+                        $("#addingNotifications").html(xhr.responseJSON.error)
+                        console.log(xhr.responseJSON);
+                    }
+                });
+            }
+        }
+
+        function validCustomer() {
+            var custName = $("#customerName").val();
+            var custAddress = $("#customerAddress").val();
+            var postalNumber = $("#customerPostalnumber").val();
+            var postalOffice = $("#customerPostaloffice").val();
+            var customertype = $('#customerType').find(":selected").val()
+            // validate all the fields and if not valid, no post request is to be sent
+            if (custName == "") {
+                $("#addingNotifications").addClass("ui-state-error");
+                $("#addingNotifications").html("Name is required");
+                return false;
+            }
+            if (custAddress == "") {
+                $("#addingNotifications").addClass("ui-state-error");
+                $("#addingNotifications").html("Address is required");
+                return false;
+            }
+            return true;
+        }
+
+
+        function searchCustomerData() {
+            $("#tabledata").empty();
+            // get the data and insert it into table
+            console.log($("#searchForm").serialize());
+
+
+            $.get("http://animalhospital.freemyip.com/customerbase/Customer?" + $("#searchForm").serialize(), function (data, status, xhr) {
+                if (status == "success") {
+                    $("#notificationWidget").hide();
+                    if (data.length == 0)
+                        $("#notificationWidget").show();
+                    console.log(data); // when using get method, data is automatically converted js-object
+                    // we could also use string method mentioned in json.html
+                    data.map((x) => {
+                        var addStr = "";
+                        for (key of Object.keys(x)) {
+                            if (key == "customertype") {
+                                // custType is now one object from custTypes object array
+                                for (custType of custTypes) {
+                                    if (custType.customertypeid == x[key])
+                                        addStr += "<td>" + custType.description + "</td>"
+                                }
+                            }
+                            else if (key != "customerid")
+                                addStr += "<td>" + x[key] + "</td>";
+                        }
+
+                        addStr += "<td><button onclick='deleteCustomer(" + x.customerid + ")'>Delete </button></td>";
+                        addStr += "<td><button onclick='editCustomer(" + x.customerid + ")'>Edit </button></td>";
+                        $("#tabledata").append("<tr>" + addStr + "</tr>");
+
+                    })
+                }
+            });
+        }
+
+        function editCustomer(id) {
+            $("#dialog-form").dialog("option", "title", "Edit customer " + id);
+            editCustomerId = id;
+            $.get("http://animalhospital.freemyip.com/customerbase/Customer/" + id, function (data, status, xhr) {
+                $("#customerName").val(data[0].name);
+                $("#customerAddress").val(data[0].address);
+                $("#customerPostalnumber").val(data[0].postalnumber);
+                $("#customerPostaloffice").val(data[0].postaloffice);
+                $('#customerType').val(data[0].customertype);
+            });
+            dialog.dialog("open");
+        }
+
+        function deleteCustomer(id) {
+            $.ajax({
+                type: "DELETE",
+                url: "http://animalhospital.freemyip.com/customerbase/Customer/" + id, //address we want to get stuff from or send stuff
+                success: function (result) {
+                    searchCustomerData();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    alert(jqXHR.error);
+                    console.log(jqXHR);
+                }
+            });
+        }
+    </script>
+</head>
+
+<body>
+    <div class="ui-widget" id="connectionError" style="">
+        <div class="ui-state-error ui-corner-all" style="padding: 0 .7em;">
+            <p><span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>
+                <strong>Alert:</strong> Error with the connection to server.
+            </p>
+        </div>
+    </div>
+
+
+    <h1>Customers</h1>
+    <fieldset>
+        <legend>Search</legend>
+        <form id="searchForm">
+            <label for="name">Name: </label><br>
+            <input type="text" name="name" id="name"><br>
+            <label for="address">Address: </label><br>
+            <input type="text" name="address" id="address"><br>
+            <label for="postalnumber">postal number: </label><br>
+            <input type="text" name="postalnumber" id="postalnumber" class="ui-autocomplete-input"
+                autocomplete="off"><br>
+            <label for="postaloffice">postal office: </label><br>
+            <input type="text" name="postaloffice" id="postaloffice" class="ui-autocomplete-input"
+                autocomplete="off"><br>
+            <label for="customertype">Customer type: </label><br>
+            <select name="customertype" class="custType" id="customertype">
+                <option value="" selected="">select customer type</option>
+            </select><br>
+
+        </form>
+        <br><button id="search">Search customers</button><br>
+        <div class="ui-widget" id="notificationWidget" style="display: none;">
+            <div class="ui-state-highlight ui-corner-all" style="margin-top: 20px; padding: 0 .7em;">
+                <p><span class="ui-icon ui-icon-info" style="float: left; margin-right: .3em;"></span>
+                    No customers with current search criteria</p>
+            </div>
+        </div>
+    </fieldset>
+    <br><button id="add-customer">Add new customer</button><br>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Postal number</th>
+                <th>Postal office</th>
+                <th>Created date</th>
+                <th>Customer type</th>
+                <th>Delete</th>
+                <th>Edit</th>
+            </tr>
+        </thead>
+        <tbody id="tabledata">
+
+        </tbody>
+    </table>
+
+
+
+    <ul id="ui-id-1" tabindex="0" class="ui-menu ui-widget ui-widget-content ui-autocomplete ui-front"
+        style="display: none;"></ul>
+    <div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div>
+    <ul id="ui-id-2" tabindex="0" class="ui-menu ui-widget ui-widget-content ui-autocomplete ui-front"
+        style="display: none;"></ul>
+    <div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div>
+    <div tabindex="-1" role="dialog"
+        class="ui-dialog ui-corner-all ui-widget ui-widget-content ui-front ui-dialog-buttons ui-draggable ui-resizable"
+        aria-describedby="dialog-form" aria-labelledby="ui-id-3" style="display: none; position: absolute;">
+        <div class="ui-dialog-titlebar ui-corner-all ui-widget-header ui-helper-clearfix ui-draggable-handle"><span
+                id="ui-id-3" class="ui-dialog-title">Add new customerrrrr</span><button type="button"
+                class="ui-button ui-corner-all ui-widget ui-button-icon-only ui-dialog-titlebar-close"
+                title="Close"><span class="ui-button-icon ui-icon ui-icon-closethick"></span><span
+                    class="ui-button-icon-space"> </span>Close</button></div>
+        <div id="dialog-form" class="ui-dialog-content ui-widget-content">
+            <p class="validateTips" id="addingNotifications">All form fields are required.</p>
+
+            <form>
+                <fieldset>
+                    <label for="customerName">Name: </label><br>
+                    <input type="text" name="name" id="customerName"><br>
+                    <label for="customerAddress">Address: </label><br>
+                    <input type="text" name="address" id="customerAddress"><br>
+                    <label for="customerPostalnumber">postal number: </label><br>
+                    <input type="text" name="postalnumber" id="customerPostalnumber"><br>
+                    <label for="customerPostaloffice">postal office: </label><br>
+                    <input type="text" name="postaloffice" id="customerPostaloffice"><br>
+                    <label for="customerType">Customer type: </label><br>
+                    <select name="customertype" class="custType" id="customerType">
+                        <option value="" selected="" disabled="">select customer type</option>
+                    </select><br>
+
+                    <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                    <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+                </fieldset>
+            </form>
+        </div>
+        <div class="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix">
+            <div class="ui-dialog-buttonset"><button type="button"
+                    class="ui-button ui-corner-all ui-widget">Save</button><button type="button"
+                    class="ui-button ui-corner-all ui-widget">Cancel</button></div>
+        </div>
+        <div class="ui-resizable-handle ui-resizable-n" style="z-index: 90;"></div>
+        <div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div>
+        <div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div>
+        <div class="ui-resizable-handle ui-resizable-w" style="z-index: 90;"></div>
+        <div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div>
+        <div class="ui-resizable-handle ui-resizable-sw" style="z-index: 90;"></div>
+        <div class="ui-resizable-handle ui-resizable-ne" style="z-index: 90;"></div>
+        <div class="ui-resizable-handle ui-resizable-nw" style="z-index: 90;"></div>
+    </div>
+</body>
+
+</html>

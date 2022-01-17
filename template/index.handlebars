@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="/CSS/style.css">
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+    crossorigin="anonymous"></script>
+  <script src="/javascript/realtime.js"></script>
+  <script src="/javascript/jquery.js"></script>
+</head>
+
+<body onload="realTimeClock()">
+  <div class="ui-widget" id="connectionError" style="display:none">
+    <div class="ui-state-error ui-corner-all" style="padding: 0 .7em;">
+      <p><span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>
+        <strong>Alert:</strong> Error with the connection to server.
+      </p>
+    </div>
+  </div>
+  <div class="main-container">
+    <!--Header-->
+    <h1>NOTEBOOK APP</h1>
+    <div id="clock"></div>
+    <img src="/source/header.jpg" class="img-background">
+
+    <!--Form to create new note-->
+    <div id=box style="padding-bottom: 3%;">
+      <div class="btncontainer" style="padding-bottom: 3%;">
+        <a href="#" class="button" id="formDisplay" onclick="showForm()">create new note</a>
+      </div>
+      <form autocomplete="off" class="form-center" id="addNewForm" style="display: none;">
+        <div id="focus"></div>
+        <input type="text" id="addTitle" placeholder="Title" autocomplete="no">
+        <input type="text" id="addDate" placeholder="Created Date" autocomplete="no">
+        <input type="text" id="addContent" placeholder="Write your note here... " autocomplete="no">
+        <p class="validateTips" id="addingNotifications" style="display: none;">All form fields are required.</p>
+        <input type="submit" id="addNewNote">
+      </form>
+    </div>
+
+    <!--Cards-->
+    <div class="cards" style="padding: 0.75rem 1.25rem;">
+      {{#each card}}
+      <div class="card shadow-0 mb-3" id="{{this.id}}" style="border-radius: 20px; border-color:grey;">
+        <div class="card-header"
+          style="border-color: grey; background-color: #fcfcfc; border-radius: 20px 20px 0px 0px;">Created Date:
+          {{this.created_date}}</div>
+        <div class="card-body" style="background-color: #fcfcfc;">
+          <h5 class="card-title">{{this.title}}</h5>
+          <p class="card-text">
+            {{this.content}}
+          </p>
+        </div>
+        <div class="icon-container card-footer" style="background-color: dimgrey; border-radius: 0px 0px 20px 20px;">
+          <div class="colunm center" style="float: left; width: 50%; padding: 10px;">
+            <button type="button" class="icon-btn" data-bs-toggle="modal" data-bs-target="#editModal"
+              data-content='{{this.content}}' data-id='{{this.id}}' data-title='{{this.title}}'
+              data-created_date='{{this.created_date}}'><i class="fa fa-edit" style="float: left;"></i></button>
+          </div>
+          <div class="colunm center" style="float: left; width: 50%; padding: 10px;">
+            <button type="button" class="icon-btn" onclick='deleteNote({{this.id}})'><i class="fa fa-trash"
+                style="float: left;"></i></button>
+          </div>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+
+
+    <!-- The Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editModal1">Edit Information</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="text" id="update-date" placeholder="Created Date" autocomplete="no">
+            <input type="text" id="update-title" placeholder="Title" autocomplete="no">
+            <input type="text" id="update-content" placeholder="Write your note here... " autocomplete="no">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" onclick='updateNote({{this.id}})'>Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+</body>
+
+</html>
